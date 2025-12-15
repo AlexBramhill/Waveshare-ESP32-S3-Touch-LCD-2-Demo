@@ -1,67 +1,46 @@
-#include <Arduino_GFX_Library.h>
+#include <Arduino.h>
+#include "bsp_i2c.h"
+#include "bsp_spi.h"
+#include "bsp_cst816.h"
+#include "bsp_lv_port.h"
 
-#define EXAMPLE_PIN_NUM_LCD_SCLK 39
-#define EXAMPLE_PIN_NUM_LCD_MOSI 38
-#define EXAMPLE_PIN_NUM_LCD_MISO 40
-#define EXAMPLE_PIN_NUM_LCD_DC 42
-#define EXAMPLE_PIN_NUM_LCD_RST -1
-#define EXAMPLE_PIN_NUM_LCD_CS 45
-#define EXAMPLE_PIN_NUM_LCD_BL 1
+#include "lvgl.h"
+#include <WiFi.h>
+#include "lvgl_ui/lvgl_ui.h"
+#include "app/app_qmi8658.h"
+#include "app/app_system.h"
+#include "app/app_camera.h"
+#include "app/app_wifi.h"
 
-#define EXAMPLE_LCD_ROTATION 1
-#define EXAMPLE_LCD_H_RES 240
-#define EXAMPLE_LCD_V_RES 320
+char sta_ssid[] = "waveshare";
+char sta_pass[] = "12345678";
 
-/* More data bus class: https://github.com/moononournation/Arduino_GFX/wiki/Data-Bus-Class */
-Arduino_DataBus *bus = new Arduino_ESP32SPI(
-    EXAMPLE_PIN_NUM_LCD_DC /* DC */, EXAMPLE_PIN_NUM_LCD_CS /* CS */,
-    EXAMPLE_PIN_NUM_LCD_SCLK /* SCK */, EXAMPLE_PIN_NUM_LCD_MOSI /* MOSI */, EXAMPLE_PIN_NUM_LCD_MISO /* MISO */);
-
-/* More display class: https://github.com/moononournation/Arduino_GFX/wiki/Display-Class */
-Arduino_GFX *gfx = new Arduino_ST7789(
-    bus, EXAMPLE_PIN_NUM_LCD_RST /* RST */, EXAMPLE_LCD_ROTATION /* rotation */, true /* IPS */,
-    EXAMPLE_LCD_H_RES /* width */, EXAMPLE_LCD_V_RES /* height */);
-
-/*******************************************************************************
- * End of Arduino_GFX setting
- ******************************************************************************/
-
-void setup(void)
+void setup()
 {
+
   Serial.begin(115200);
-  // Serial.setDebugOutput(true);
-  // while(!Serial);
-  Serial.println("Arduino_GFX Hello World example");
+  bsp_i2c_init();
+  bsp_lv_port_init();
+  bsp_spi_init();
 
-#ifdef GFX_EXTRA_PRE_INIT
-  GFX_EXTRA_PRE_INIT();
-#endif
+  bsp_lv_port_run();
 
-  // Init Display
-  if (!gfx->begin())
+  if (lvgl_lock(-1))
   {
-    Serial.println("gfx->begin() failed!");
+    lvgl_ui_init();
+    lvgl_unlock();
   }
-  gfx->fillScreen(RGB565_BLACK);
+  app_qmi8658_init();
+  app_system_init();
+  app_camera_init();
+  app_wifi_init(sta_ssid, sta_pass);
 
-#ifdef EXAMPLE_PIN_NUM_LCD_BL
-  pinMode(EXAMPLE_PIN_NUM_LCD_BL, OUTPUT);
-  digitalWrite(EXAMPLE_PIN_NUM_LCD_BL, HIGH);
-#endif
-
-  gfx->setCursor(10, 10);
-  gfx->setTextColor(RGB565_RED);
-  gfx->println("Hello World!");
-
-  delay(5000); // 5 seconds
+  app_qmi8658_run();
+  app_system_run();
+  app_camera_run();
+  app_wifi_run();
 }
 
 void loop()
 {
-  gfx->setCursor(random(gfx->width()), random(gfx->height()));
-  gfx->setTextColor(random(0xffff), random(0xffff));
-  gfx->setTextSize(random(6) /* x scale */, random(6) /* y scale */, random(2) /* pixel_margin */);
-  gfx->println("Hello World!");
-
-  delay(1000); // 1 second
 }
