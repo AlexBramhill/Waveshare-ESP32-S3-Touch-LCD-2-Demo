@@ -40,6 +40,14 @@ static camera_config_t camera_config = {
     .grab_mode = CAMERA_GRAB_WHEN_EMPTY,
 };
 
+static void swap_rgb565_bytes(uint16_t *buffer, size_t px_count)
+{
+  for (size_t i = 0; i < px_count; i++)
+  {
+    buffer[i] = (buffer[i] >> 8) | (buffer[i] << 8);
+  }
+}
+
 void app_camera_task(void *arg)
 {
   camera_fb_t *pic;
@@ -51,6 +59,20 @@ void app_camera_task(void *arg)
   img_dsc.header.cf = LV_IMG_CF_TRUE_COLOR;
   img_dsc.data = NULL;
 
+  // Allocate double buffers for ping-pong operation
+  uint16_t *swap_buffers[2];
+  swap_buffers[0] = (uint16_t *)heap_caps_malloc(240 * 240 * 2, MALLOC_CAP_SPIRAM);
+  swap_buffers[1] = (uint16_t *)heap_caps_malloc(240 * 240 * 2, MALLOC_CAP_SPIRAM);
+
+  if (!swap_buffers[0] || !swap_buffers[1])
+  {
+    Serial.println("Failed to allocate swap buffers!");
+    vTaskDelete(NULL);
+    return;
+  }
+
+  uint8_t current_buffer = 0;
+
   // lv_img_set_src(img_camera, &pic);
   while (1)
   {
@@ -60,10 +82,17 @@ void app_camera_task(void *arg)
 
     if (NULL != pic)
     {
-      img_dsc.data = pic->buf;
+      // Process in background buffer without locking LVGL
+      uint8_t work_buffer = 1 - current_buffer;
+      memcpy(swap_buffers[work_buffer], pic->buf, pic->len);
+      swap_rgb565_bytes(swap_buffers[work_buffer], pic->len / 2); // Each pixel is 2 bytes
+
+      // Quick lock just to update the pointer
       if (lvgl_lock(-1))
       {
+        img_dsc.data = (uint8_t *)swap_buffers[work_buffer];
         lv_img_set_src(img_camera, &img_dsc);
+        current_buffer = work_buffer;
         lvgl_unlock();
       }
     }

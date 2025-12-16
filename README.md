@@ -5,4 +5,4 @@ This code has very minor tweaks from Waveshare's [supplied code](https://files.w
 
 This repo supplies all required libraries, so it should be the case of cloning, opening vscode and clicking `build` in the platformio extension. Updating versions (specifically major versions of LVGL) will require additional work.
 
-Note: The camera is currently demonstrating a rainbow effect in testing. It's unclear whether this is a faulty unit or an issue with the code.
+Note: The existing implementation of the factory demo seemed to have an issue regarding `LV_COLOR_16_SWAP`. This was initially set to `1`, causing the camera to display the correct colours, but the UI to display incorrectly. As a result, I've added a quickfix to swap pixels for the camera, allowing the UI to remain unchanged. Due to processing times of this operation, a double buffer was required. 
